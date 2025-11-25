@@ -2,7 +2,6 @@ import os
 import copy
 import pickle
 import pandas as pd
-from pandas import DataFrame
 
 from tqdm import tqdm
 
@@ -14,8 +13,6 @@ from mlxtend.plotting import plot_confusion_matrix
 
 import numpy as np
 import matplotlib.pyplot as plt
-import seaborn as sns
-import scipy.stats as stats
 
 import wandb
 import random
@@ -27,7 +24,6 @@ import torch
 from torch import nn
 import torch.nn.functional as F
 from torch.utils.data import Dataset, DataLoader
-# from einops import rearrange
 
 os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 
@@ -123,18 +119,12 @@ def load(feature_path, drop_correlated = True, corr_thr = 0.85):
     
     # drop duplicates based on the Filename column
     features = features.drop_duplicates(subset=['Filename'])
-    
-    
-    
+ 
     # make the Filename column the index
     #features.set_index('Filename', inplace=True)
     
     return features, columns
-    # features = features.to_numpy()
-    # labels = 1.0*(df["pd"]!=0.0)
-    # df["id"] = df.Filename.apply(parse_patient_id)
-
-    # return features, labels, df["id"], columns
+    
     
 
 def merge_features(feature_file_list, feature_column_list):
@@ -166,13 +156,6 @@ def merge_features(feature_file_list, feature_column_list):
     labels = []
     
     for i in range(len(feature_file_list)):
-        # we will reindex the feature file to match the union of the file names
-        # if a file name is not in the feature file, we will fill the missing values with 0
-        # feature_file = feature_file_list[i]
-        # feature_file = feature_file.reindex(file_names['Filename'], fill_value=0)
-        # feature_file = feature_file[feature_column_list[i]]
-        # feature_list.append(feature_file.to_numpy())
-        
         # this time we will only keep the rows in the feature files that are in the intersection
         feature_file = feature_file_list[i]
         feature_file = feature_file[feature_file['Filename'].isin(intersection_df['Filename'])]
@@ -405,10 +388,6 @@ class Projection_ANN(nn.Module):
         reconstructed_features = [self.reconstruction[i](projected_features[i]) for i in range(self.n_modalities)]
         
         return projected_features, output, reconstructed_features
-
-
-
-
 
 
 def cosine_similarity(projected_features):
@@ -700,48 +679,12 @@ def evaluate(model, dataloader, reconstruction_loss_cfg, weights, thresholding_f
         df_label_pred.to_csv('all_labels_preds.csv', index=False)
         
         return closest_threshold
-        return optimal_threshold
 
     results = compute_metrics(all_labels, all_preds, threshold=threshold)
     results["loss"] = total_loss.to('cpu').item() / len(dataloader.dataset)
     
 
     return results
-
-
-
-
-# @click.command()
-# @click.option("--model", default="ANN", help="Options: ANN, ShallowANN")
-# @click.option("--projection_dim", default=1024, help="Projection dimension size")
-# @click.option("--normalization_dim", default=0, help="Normalization dimension; typically 0 or 1")
-# @click.option("--first_operation", default="normalize", help="First operation to perform on features")
-# @click.option("--reconstruction_loss", default="mse", help="Reconstruction loss; Options: mse, l1, huber, kl")
-# @click.option("--learning_rate", default=0.13607273601552827, help="Learning rate for classifier")
-# @click.option("--random_state", default=519, help="Random state for classifier")
-# @click.option("--seed", default=754, help="Seed for random number generation")
-# @click.option("--use_feature_scaling", default='yes', help="Apply feature scaling: yes or no")
-# @click.option("--scaling_method", default="StandardScaler", help="Method for feature scaling: StandardScaler, MinMaxScaler")
-# @click.option("--minority_oversample", default='no', help="Apply minority oversampling: yes or no")
-# @click.option("--batch_size", default=64, help="Batch size for training")
-# @click.option("--num_epochs", default=30, help="Number of epochs for training")
-# @click.option("--drop_correlated", default='yes', help="Drop correlated features: yes or no")
-# @click.option("--corr_thr", default=0.95, help="Threshold for dropping correlated features")
-# @click.option("--optimizer", default="SGD", help="Optimizer for training: SGD, AdamW")
-# @click.option("--beta1", default=0.9, help="Beta1 value for optimizer")
-# @click.option("--beta2", default=0.999, help="Beta2 value for optimizer")
-# @click.option("--weight_decay", default=0.0001, help="Weight decay rate for regularization")
-# @click.option("--momentum", default=0.41180892053506224, help="Momentum for optimizer")
-# @click.option("--use_scheduler", default='yes', help="Use learning rate scheduler: yes or no")
-# @click.option("--scheduler", default="reduce", help="Type of scheduler: step, reduce")
-# @click.option("--step_size", default=26, help="Step size for step scheduler")
-# @click.option("--gamma", default=0.5371176151387734, help="Gamma value for scheduler")
-# @click.option("--patience", default=4, help="Patience for reduce scheduler")
-# @click.option("--w_prediction_loss", default=10.0, help="Weight for prediction loss")
-# @click.option("--w_cosine_loss", default=4.0, help="Weight for cosine loss")
-# @click.option("--w_reconstruction_loss", default=3.0, help="Weight for reconstruction loss")
-# @click.option("--FEATURES_FILE_1", default="imagebind_fox_features_cleaned.csv", help="Path to the first feature file")
-# @click.option("--FEATURES_FILE_2", default="wavlm_fox_features_cleaned.csv", help="Path to the second feature file")
 
 @click.command()
 @click.option("--model", default="ANN", help="Options: ANN, ShallowANN")
@@ -866,11 +809,6 @@ def main(**cfg):
 
     assert len(X_train) == len(X_dev) == len(X_test)
     
-    # # check if the X_train and X_dev have any NaN values
-    # for i in range(n_modality):
-    #     print(np.isnan(X_train[i]).any(), np.isnan(X_dev[i]).any(), np.isnan(X_test[i]).any())
-    
-    # exit()
 
     if cfg['use_feature_scaling']=='yes':
         if cfg['scaling_method'] == 'StandardScaler':
@@ -884,14 +822,6 @@ def main(**cfg):
         pickle.dump(scaler, open(SCALER_PATH,"wb"))
         used_scaler = pickle.load(open(SCALER_PATH,'rb'))
         
-    
-    # if cfg['minority_oversample']=='yes':
-    #     oversampled_labels = []
-    #     for i in range(n_modality):
-    #         X_train[i], y_train_i = oversample.fit_resample(X_train[i], y_train)
-    #         oversampled_labels.append(y_train_i)
-        
-    #     y_train = oversampled_labels[0]
 
     print("Printing the shape of the train set before oversampling")
     print(X_train[0].shape, X_train[1].shape, len(y_train))
@@ -916,16 +846,6 @@ def main(**cfg):
         
         print("Printing the shape of the train set after oversampling")
         print(X_train[0].shape, X_train[1].shape, len(y_train))
-    
-    # let's do random undersampling
-    # if cfg['minority_undersample']=='yes':
-    #     rus = RandomUnderSampler(random_state=cfg['random_state'])
-    #     X_train_concat = np.concatenate(X_train, axis=1)
-    #     X_train_concat_undersampled, y_train = rus.fit_resample(X_train_concat, y_train)
-    #     X_train = [X_train_concat_undersampled[:, :X_train[i].shape[1]] for i in range(n_modality)]
-    #     print("Printing the shape of the train set after undersampling")
-    #     print(X_train[0].shape, X_train[1].shape, len(y_train))    
-        
     
     print("Printing the 0/1 count of the train set after oversampling")
     print(np.unique(y_train, return_counts=True))
@@ -1120,35 +1040,6 @@ def main(**cfg):
     # print(evaluate(loaded_model,test_loader, cfg['reconstruction_loss']))
     # print(cfg)
     # print(loaded_model)
-
-        
-# cfg = {
-#     "model": "ANN",
-#     "projection_dim": 1024,
-#     "normalization_dim": 0,
-#     "first_operation": "normalize",  
-#     "reconstruction_loss": "mse",  # This could be "mse", "l1", "huber", or "kl"
-#     "learning_rate": 0.13607273601552827,
-#     "random_state": 519,
-#     "seed": 754,
-#     "use_feature_scaling": "yes",  # This could be converted to a boolean before use
-#     "scaling_method": "StandardScaler",
-#     "minority_oversample": "no",  # This could also be converted to a boolean before use
-#     "batch_size": 64,
-#     "num_epochs": 30,
-#     "drop_correlated": "yes",  # Again, consider converting to boolean for practical use
-#     "corr_thr": 0.95,
-#     "optimizer": "SGD",
-#     "beta1": 0.9,
-#     "beta2": 0.999,
-#     "weight_decay": 0.0001,
-#     "momentum": 0.41180892053506224,
-#     "use_scheduler": "yes",  # Convert to boolean as needed
-#     "scheduler": "reduce",
-#     "step_size": 26,
-#     "gamma": 0.5371176151387734,
-#     "patience": 4
-# }
 
 if __name__ == "__main__":
     main()
